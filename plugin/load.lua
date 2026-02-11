@@ -11,8 +11,7 @@ end
 
 local ipc = require("chipped")
 ipc.set_autoretry(true)
-local DEFAULT_PORT = 8765
-ipc.connect(DEFAULT_PORT)
+ipc.connect()
 
 vim.on_key(function()
 	local mode = vim.api.nvim_get_mode().mode

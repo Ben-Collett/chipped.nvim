@@ -1,0 +1,14 @@
+when the user enters insert mode put them in default_mode_for_file_type(they pass in)
+allow the user to define a function for each file type to define what kind of casing should be used returning snake, cammen, SNAKE, proper, normal
+
+add ipc casing lock to fuzzy chip
+for example
+
+function python()
+  left = everything left of cursor current positong 
+  
+  if is_comment() normal casing 
+  elif in_string()
+  elif left.startsWith(def) and left.endsWith(" ") and  left.word_count >= 2: return snake
+  elif left.startWith(class) and left.endsWith(" ") and  left.word_count >= 2: return proper
+end

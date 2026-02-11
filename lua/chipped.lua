@@ -1,3 +1,5 @@
+local DEFAULT_PORT = 8765
+local DEFAULT_HOST = "127.0.0.1"
 local M = {}
 
 local sockets = {}
@@ -10,78 +12,94 @@ end
 function M.set_autoretry(enabled)
 	autoretry_enabled = enabled
 end
-
-function M.connect(port)
+local function host_port_id(port, host)
+	return host .. " " .. tostring(port)
+end
+local function split_host_port_id(id)
+	local host, port = id:match("^(.-)%s+(%d+)$")
+	return host, tonumber(port)
+end
+function M.connect(port, host)
+	port = port or DEFAULT_PORT
+	host = host or DEFAULT_HOST
+	local id = host_port_id(port, host)
 	local socket = vim.loop.new_tcp()
-	socket:connect("127.0.0.1", port, function(err)
+	socket:connect(host, port, function(err)
 		if err then
 			my_log("Failed to connect to port " .. port .. ": " .. err)
 			socket:close()
-			failed_connections[port] = true
+			failed_connections[id] = true
 		else
 			my_log("connected to port " .. port)
-			sockets[port] = socket
-			failed_connections[port] = nil
+			sockets[id] = socket
+			failed_connections[id] = nil
 		end
 	end)
 end
 
-function M.reconnect(port)
+function M.reconnect(port, host)
+	port = port or DEFAULT_PORT
+	host = host or DEFAULT_HOST
+	local id = host_port_id(port, host)
 	local socket = vim.loop.new_tcp()
-	socket:connect("127.0.0.1", port, function(err)
+	socket:connect(host, port, function(err)
 		if err then
 			socket:close()
-			failed_connections[port] = true
+			failed_connections[id] = true
 		else
-			sockets[port] = socket
-			failed_connections[port] = nil
+			sockets[id] = socket
+			failed_connections[id] = nil
 			my_log("reconnected to port " .. port)
 		end
 	end)
 end
 
-function M.disconnect(port)
-	local socket = sockets[port]
+function M.disconnect(port, host)
+	port = port or DEFAULT_PORT
+	host = host or DEFAULT_HOST
+	local id = host_port_id(port, host)
+	local socket = sockets[id]
 
-	sockets[port] = nil
-	failed_connections[port] = nil
+	sockets[id] = nil
+	failed_connections[id] = nil
 
 	if socket then
-		my_log("disconnecting" .. port)
+		my_log("disconnecting" .. host .. " " .. port)
 		socket:close()
 	end
 end
 local function _retry_failed_connections()
-	for port, _ in pairs(failed_connections) do
-		M.reconnect(port)
+	for id, _ in pairs(failed_connections) do
+		local host, port = split_host_port_id(id)
+		M.reconnect(port, host)
 	end
 end
-function M.send_msg(msg)
+function M.send_message(msg)
 	local formatted_msg = msg:len() .. "\n" .. msg
 	if autoretry_enabled then
 		_retry_failed_connections()
 	end
 
-	for port, socket in pairs(sockets) do
+	for id, socket in pairs(sockets) do
 		socket:write(formatted_msg, function(err)
 			if err then
-				my_log("lost connection to port " .. port .. ": " .. err)
-				sockets[port] = nil
+				my_log("lost connection to " .. id .. ": " .. err)
+				sockets[id] = nil
 				socket:close()
-				failed_connections[port] = true
+				failed_connections[id] = true
 			end
 		end)
 	end
 end
 
 function M.send_clear_buffer()
-	M.send_msg("cb")
+	M.send_message("cb")
 end
 function M.send_set_main_buffer(content)
-	M.send_msg("sm " .. content)
+	M.send_message("sm " .. content)
 end
 function M.send_set_right_buffer(content)
-	M.send_msg("sr " .. content)
+	M.send_message("sr " .. content)
 end
 function M.connected_ports() end
 
@@ -97,6 +115,9 @@ function M.proper_casing()
 end
 function M.camel_casing()
 	M.send_message("cm")
+end
+function M.kebab_casing()
+	M.send_message("kb")
 end
 function M.upper_snake_casing()
 	M.send("us")
