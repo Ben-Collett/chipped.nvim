@@ -27,7 +27,7 @@ function M.connect(port, host)
 	socket:connect(host, port, function(err)
 		if err then
 			my_log("Failed to connect to port " .. port .. ": " .. err)
-			socket:close()
+			pcall(function() socket:close() end)
 			failed_connections[id] = true
 		else
 			my_log("connected to port " .. port)
@@ -44,7 +44,7 @@ function M.reconnect(port, host)
 	local socket = vim.loop.new_tcp()
 	socket:connect(host, port, function(err)
 		if err then
-			socket:close()
+			pcall(function() socket:close() end)
 			failed_connections[id] = true
 		else
 			sockets[id] = socket
@@ -65,7 +65,7 @@ function M.disconnect(port, host)
 
 	if socket then
 		my_log("disconnecting" .. host .. " " .. port)
-		socket:close()
+		pcall(function() socket:close() end)
 	end
 end
 local function _retry_failed_connections()
@@ -85,7 +85,7 @@ function M.send_message(msg)
 			if err then
 				my_log("lost connection to " .. id .. ": " .. err)
 				sockets[id] = nil
-				socket:close()
+				pcall(function() socket:close() end)
 				failed_connections[id] = true
 			end
 		end)
